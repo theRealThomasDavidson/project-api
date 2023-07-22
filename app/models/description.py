@@ -1,4 +1,5 @@
 from app import db
+from app.models import project
 
 class Description(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -14,7 +15,10 @@ class Description(db.Model):
     def save(self):
         db.session.add(self)
         db.session.commit()
-    
+
     def delete(self):
         db.session.delete(self)
         db.session.commit()
+
+    def get_project(self):
+        return project.Project.query.get(self.project_id).first()

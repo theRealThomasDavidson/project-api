@@ -3,6 +3,7 @@ from functools import wraps
 import requests
 from dotenv import dotenv_values
 from re import sub
+from app import db
 
 from app.models.project import Project
 from app.models.tag import Tag
@@ -38,6 +39,40 @@ def check_admin_permission(f):
 
     return decorated_function
 
+
+#CREATE
+@controller_bp.route('/', methods=['POST'])
+@check_admin_permission
+def create_project():
+    data = request.get_json()
+    title, overview = data.get('title'), data.get('overview')
+    if not (title and overview):
+        return jsonify({"message":"Project must include a title and overview"}), 400
+    project = Project(
+        title=title,
+        github_link=data.get('github_link'),
+        overview=overview,
+        start_date=data.get('start_date'),
+        end_date=data.get('end_date')
+    )
+
+    for tag_name in data.get("tags", []):
+        tag = Tag.query.filter_by(name=tag_name).first()
+        if not tag:
+            tag = Tag(name=tag_name)
+            tag.save()
+        project.tags.append(tag)
+
+    # Add descriptions to the project if any are provided
+    for description_text in data.get("description", []):
+        description = Description(description=description_text, project=project)
+        project.descriptions.append(description)
+    # Save the project to the database
+    project.save()
+
+    return jsonify(project.serialize()), 201  # Return the created project with status code 201
+
+
 #READ
 # Define routes and their corresponding functions
 @controller_bp.route('/', methods=['GET'])
@@ -47,11 +82,11 @@ def get_projects():
     # Serialize the projects to JSON and return the response
     return jsonify([project.serialize() for project in projects])
 
-@controller_bp.route('/projects/<string:title>', methods=['GET'])
+@controller_bp.route('find/<string:title>', methods=['GET'])
 def get_project_by_title(title):
     title = sub(r'_+', '_', title)
     # Retrieve the project that matches the formatted title
-    project = Project.query.filter_by(title=title).first()
+    project = Project.query.filter(Project.title.like(title)).first()
 
     if project:
         # Serialize the project to JSON and return the response
@@ -64,13 +99,13 @@ def get_project_by_title(title):
 def get_projects_by_tag(tag_name):
     tag_name = sub(r'_+', '_', tag_name)
     # Retrieve projects that have the specified tag
-    projects = Project.query.filter(Project.tags.any(name=tag_name)).all()
-
-    if projects:
-        # Serialize the projects to JSON and return the response
-        return jsonify([project.serialize() for project in projects])
-    else:
+    tag = Tag.query.filter(Tag.name.like(tag_name)).first()
+    if not tag:
+        return jsonify({"message": "No tags found with the specified name"}), 404
+    if not tag.projects:
         return jsonify({"message": "No projects found with the specified tag"}), 404
+    return jsonify([project.serialize() for project in tag.projects])
+
 
 @controller_bp.route('/tags', methods=['GET'])
 def get_tags_with_projects():
@@ -84,76 +119,18 @@ def get_tags_with_projects():
         return jsonify({"message": "No tags with projects found"}), 404
 
 
-#CREATE
-@controller_bp.route('/', methods=['POST'])
-@check_admin_permission
-def create_project():
-    data = request.get_json()
-    project = Project(
-        title=data.get('title'),
-        github_link=data.get('github_link'),
-        overview=data.get('overview'),
-        start_date=data.get('start_date'),
-        end_date=data.get('end_date')
-    )
-
-    for tag_name in data.get("tags", []):
-        tag = Tag.query.filter_by(name=tag_name).first()
-        if not tag:
-            tag = Tag(name=tag_name)
-        project.tags.append(tag)
-
-    # Add descriptions to the project if any are provided
-    for description_text in data.get("description", []):
-        description = Description(description=description_text, project=project)
-        project.descriptions.append(description)
-    # Save the project to the database
-    project.save()
-
-    return jsonify(project.serialize()), 201  # Return the created project with status code 201
-
-
-#DELETE
-@controller_bp.route('/<int:project_id>', methods=['DELETE'])
-@check_admin_permission
-def delete_project(project_id):
-    # Retrieve the project by its ID
-    project = Project.query.get(project_id)
-
-    if project:
-        # Delete the project from the database
-        project.delete()
-        return jsonify({"message": "Project deleted successfully"}), 204
-    else:
-        return jsonify({"message": "Project not found"}), 404
-
-
-@controller_bp.route('/tag/<int:tag_id>', methods=['DELETE'])
-@check_admin_permission
-def delete_tag(tag_id):
-    # Retrieve the tag by its ID
-    tag = Tag.query.get(tag_id)
-
-    if tag:
-        # Delete the tag from the database
-        tag.delete()
-        return jsonify({"message": "Tag deleted successfully"}), 204
-    else:
-        return jsonify({"message": "Tag not found"}), 404
-
-
 #UPDATE
 @controller_bp.route('/<int:project_id>', methods=['PUT'])
 @check_admin_permission
 def update_project(project_id):
     # Retrieve the project from the database by its ID
-    project = Project.query.get(project_id)
+    project = Project.query.filter(Project.id==project_id).first()
 
     if not project:
         return jsonify({"message": "Project not found"}), 404
     data = request.json
-    if not project:
-        return jsonify({"message": "Body not readable"}), 400
+    if not data:
+        return jsonify({"message": "Body not readable"}), 400 
     project.update(args=data)
     return jsonify({"message": project.serialize()}), 200
 
@@ -162,7 +139,7 @@ def update_project(project_id):
 @check_admin_permission
 def update_tag(tag_id):
     # Retrieve the tag from the database by its ID
-    tag = Tag.query.get(tag_id)
+    tag = db.session.get(Tag, tag_id)
 
     if not tag:
         return jsonify({"message": "Tag not found"}), 404
@@ -177,3 +154,32 @@ def update_tag(tag_id):
     tag.save()
 
     return jsonify({"message": tag.serialize()}), 200
+
+#DELETE
+@controller_bp.route('/<int:project_id>', methods=['DELETE'])
+@check_admin_permission
+def delete_project(project_id):
+    # Retrieve the project by its ID
+    project = db.session.get(Project, project_id)
+    # project = Project.query.like(project_id)
+
+    if project:
+        # Delete the project from the database
+        project.delete()
+        return jsonify({"message": "Project deleted successfully"}), 204
+    else:
+        return jsonify({"message": "Project not found"}), 404
+
+
+@controller_bp.route('/tag/<string:tag_name>', methods=['DELETE'])
+@check_admin_permission
+def delete_tag(tag_name):
+    # Retrieve the tag by its ID
+    tag = Tag.query.filter(Tag.name.like(tag_name)).first()
+
+    if tag:
+        # Delete the tag from the database
+        tag.delete()
+        return jsonify({"message": "Tag deleted successfully"}), 204
+    else:
+        return jsonify({"message": "Tag not found"}), 404

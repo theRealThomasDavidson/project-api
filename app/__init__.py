@@ -15,8 +15,8 @@ dotenv_path = '.env'
 load_dotenv()
 def create_app():
     substitution_dict = dict(dotenv_values(dotenv_path))
-    from app.models.project import Project
     from app.models.tag import Tag
+    from app.models.project import Project
     from app.models.description import Description
     app = Flask(__name__)
     CORS(app, supports_credentials=True, resources={
