@@ -1,9 +1,9 @@
 from flask import Blueprint, request, jsonify
 from functools import wraps
 import requests
-from dotenv import dotenv_values
 from re import sub
 from app import db
+from os import environ
 
 from app.models.project import Project
 from app.models.tag import Tag
@@ -13,8 +13,7 @@ from logging import warning
 # Create a Blueprint for the controller
 controller_bp = Blueprint('controller', __name__)
 
-dotenv_path = ".env"
-environment = dict(dotenv_values(dotenv_path))
+environment = environ
 VERIFY_URL = environment["VERIFY_URL"]
 ADMIN_LIST = set(environment["ADMIN_LIST"].split(","))
 
@@ -39,6 +38,11 @@ def check_admin_permission(f):
 
     return decorated_function
 
+
+@controller_bp.route('/admin', methods=['GET'])
+@check_admin_permission
+def check_admin():
+    return jsonify({"message":"Approved"}), 204
 
 #CREATE
 @controller_bp.route('/', methods=['POST'])

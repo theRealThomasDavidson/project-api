@@ -90,8 +90,8 @@ class Project(db.Model):
         return {
             'id': self.id,
             'title': self.title,
-            'description': self.overview,
-            'features': [description.description for description in self.descriptions],
+            'overview': self.overview,
+            'description': [description.description for description in self.descriptions],
             'githubLink': self.github_link,
             'tags': [tag.serialize() for tag in self.tags],
             'dates': [

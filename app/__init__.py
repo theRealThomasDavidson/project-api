@@ -11,10 +11,8 @@ from logging import warning
 app = None
 db = SQLAlchemy()  # Create an instance of SQLAlchemy
 migrate = Migrate()
-dotenv_path = '.env'
-load_dotenv()
 def create_app():
-    substitution_dict = dict(dotenv_values(dotenv_path))
+    substitution_dict = environ
     from app.models.tag import Tag
     from app.models.project import Project
     from app.models.description import Description

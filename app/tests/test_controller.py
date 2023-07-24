@@ -6,15 +6,14 @@ from app.models.description import Description
 from requests import Response
 from unittest.mock import patch, MagicMock
 import requests
-from dotenv import dotenv_values
+from os import environ
 from sqlalchemy import select
 from datetime import date
 import json
 # Define the JWT token as a constant outside the test class
 JWT_TOKEN_GOOD = 'your_test_token'
 JWT_TOKEN_BAD = 'your_bad_token'
-dotenv_path = ".env.testing"
-environment = dict(dotenv_values(dotenv_path))
+environment = environ
 VERIFY_URL = environment["VERIFY_URL"]
 class AuthTestCase(unittest.TestCase):
     def setUp(self):
