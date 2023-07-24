@@ -171,7 +171,7 @@ class AuthTestCase(unittest.TestCase):
             data = response.get_json()
             self.assertEqual(response.status_code, 200)
             self.assertEqual(data["title"], basic_title)
-            self.assertEqual(data["description"], basic_overview)
+            self.assertEqual(data["overview"], basic_overview)
 
             # Test when the project is not found by non-existing title
             response = http_method(endpoint + 'Non_Existing_Project')
@@ -192,7 +192,7 @@ class AuthTestCase(unittest.TestCase):
             data = response.get_json()
             self.assertEqual(response.status_code, 200)
             self.assertEqual(data["title"], space_title)
-            self.assertEqual(data["description"], basic_overview)
+            self.assertEqual(data["overview"], basic_overview)
 
 
     def test_tag_endpoints(self):
